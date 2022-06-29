@@ -59,12 +59,15 @@ while True:
 perc_base = [None] * nreps
 err_offset_base = [None] * nreps
 err_base = [None] * nreps
+beta_vec_base = [None] * nreps
 perc_robust = [None] * nreps
 err_offset_robust = [None] * nreps
 err_robust = [None] * nreps
+beta_vec_robust = [None] * nreps
 perc_fullb = [None] * nreps
 err_offset_fullb = [None] * nreps
 err_fullb = [None] * nreps
+beta_vec_fullb = [None] * nreps
 gamma = [None] * nreps
 loglikelihood0 = [None] * nreps
 r0 = []
@@ -261,6 +264,8 @@ for ndata in datasizes:
                                  torch.as_tensor([model0(x.reshape(1, dimx)).stddev.detach()
                                            for x in test_x]).detach().to(output_device)
             perc_base[rep], err_offset_base[rep], err_base[rep] = evalperf(test_y, mean0, stddev0, mean0, sqrbeta0)
+            beta_vec_base[rep] = get_beta(test_y, mean0, stddev0)
+
             del model0
             torch.cuda.empty_cache()
 
@@ -275,13 +280,30 @@ for ndata in datasizes:
                                                              for x in test_x]).detach().to(output_device)
             perc_robust[rep], err_offset_robust[rep], err_robust[rep] = evalperf(test_y, mean0, stddev_bound,
                                                                                  mean_bound, sqrbeta0)
+            beta_vec_robust[rep] = get_beta(test_y, mean0, stddev_bound)
+
             del boundinggp
             torch.cuda.empty_cache()
 
         if fullbmodel:
+            # transpose means and standard deviations of fully Bayesian model for Gaussian mixture model
+            fbmeans = torch.transpose(outputfb.mean,0,1)
+            fbstddevs = torch.transpose(outputfb.stddev,0,1)
+
+            # create set of normally distributed variables with means fbmeans and standard deviations fbstddevs
+            fbN = torch.distributions.Normal(fbmeans,fbstddevs)
+
+            # generate weights (ones) for Gaussian mixture models
+            fbgmmweights = torch.distributions.Categorical(torch.ones(num_samples,))
+
+            # create Gaussian mixture model using fully Bayesian GP evaluations
+            fbgmm = torch.distributions.mixture_same_family.MixtureSameFamily(fbgmmweights, fbN)
+
             perc_fullb[rep], err_offset_fullb[rep], err_fullb[rep] = \
-                evalperf(test_y, torch.mean(outputfb.mean, 0), torch.mean(outputfb.stddev, 0),
-                         torch.mean(outputfb.mean, 0), sqrbeta0)
+                evalperf(test_y, fbgmm.mean, fbgmm.stddev,
+                         fbgmm.mean, sqrbeta0)
+            beta_vec_fullb[rep] = get_beta(test_y, fbgmm.mean, fbgmm.stddev)
+
             del fullbmodel
             torch.cuda.empty_cache()
             mean_perc_fullb = str('{:.4}'.format(torch.mean(torch.as_tensor(perc_fullb[:rep + 1])).item()))
@@ -293,10 +315,15 @@ for ndata in datasizes:
 
         datastr = np.array2string(ndata.detach().numpy())
 
-        print('ECE robust GP:  %.3f, ECE vanilla GP: %.3f, ECE fully Bayes GP: ' %
+        print('Beta robust GP:  %.3f, Beta vanilla GP: %.3f, Beta fully Bayes GP: ' %
               (torch.mean(torch.as_tensor(perc_robust[:rep + 1])),
                torch.mean(torch.as_tensor(perc_base[:rep + 1])))
               + mean_perc_fullb)
+
+        # print('ECE robust GP:  %.3f, ECE vanilla GP: %.3f, ECE fully Bayes GP: ' %
+        #       (torch.mean(torch.as_tensor(perc_robust[:rep + 1])),
+        #        torch.mean(torch.as_tensor(perc_base[:rep + 1])))
+        #       + mean_perc_fullb)
 
         # uncomment the following lines to see MSE of the different models
         # print('MSE robust GP:  %.3f, MSE vanilla GP: %.3f, MSE fully Bayes GP: ' %
@@ -305,14 +332,15 @@ for ndata in datasizes:
         #       + mse_fullb)
 
         with open('regressionresults/percanderrs' + name_saving + datastr + '.pkl', 'wb') as f:
-            pickle.dump([perc_base[:rep], err_offset_base[:rep], err_base[:rep],
+            pickle.dump([beta_vec_base[:rep],beta_vec_robust[:rep],beta_vec_fullb[:rep],
+                         perc_base[:rep], err_offset_base[:rep], err_base[:rep],
                          perc_robust[:rep], err_offset_robust[:rep], err_robust[:rep],
                          perc_fullb[:rep], err_offset_fullb[:rep], err_fullb[:rep], gamma[:rep]], f)
 
         if name_saving == 'gaussianprocess':
 
             plot1D(X_data, y_data, X_test, mean0, sqrbeta0, stddev0, sqrbeta0,
-                   stddev_bound, torch.mean(outputfb.mean, 0).detach(), torch.mean(outputfb.stddev, 0).detach(),
+                   stddev_bound, fbgmm.mean.detach(), fbgmm.stddev.detach(),
                    f_true)
 
     ndatait += 1
