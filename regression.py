@@ -309,15 +309,11 @@ for ndata in datasizes:
 
         datastr = np.array2string(ndata.detach().numpy())
 
-        print('Beta robust GP:  %.3f, Beta vanilla GP: %.3f, Beta fully Bayes GP: ' %
+
+        print('ECE robust GP:  %.3f, ECE vanilla GP: %.3f, ECE fully Bayes GP: ' %
               (torch.mean(torch.as_tensor(perc_robust[:rep + 1])),
                torch.mean(torch.as_tensor(perc_base[:rep + 1])))
               + mean_perc_fullb)
-
-        # print('ECE robust GP:  %.3f, ECE vanilla GP: %.3f, ECE fully Bayes GP: ' %
-        #       (torch.mean(torch.as_tensor(perc_robust[:rep + 1])),
-        #        torch.mean(torch.as_tensor(perc_base[:rep + 1])))
-        #       + mean_perc_fullb)
 
         # uncomment the following lines to see MSE of the different models
         # print('MSE robust GP:  %.3f, MSE vanilla GP: %.3f, MSE fully Bayes GP: ' %
