@@ -59,15 +59,12 @@ while True:
 perc_base = [None] * nreps
 err_offset_base = [None] * nreps
 err_base = [None] * nreps
-beta_vec_base = [None] * nreps
 perc_robust = [None] * nreps
 err_offset_robust = [None] * nreps
 err_robust = [None] * nreps
-beta_vec_robust = [None] * nreps
 perc_fullb = [None] * nreps
 err_offset_fullb = [None] * nreps
 err_fullb = [None] * nreps
-beta_vec_fullb = [None] * nreps
 gamma = [None] * nreps
 loglikelihood0 = [None] * nreps
 r0 = []
@@ -264,7 +261,6 @@ for ndata in datasizes:
                                  torch.as_tensor([model0(x.reshape(1, dimx)).stddev.detach()
                                            for x in test_x]).detach().to(output_device)
             perc_base[rep], err_offset_base[rep], err_base[rep] = evalperf(test_y, mean0, stddev0, mean0, sqrbeta0)
-            beta_vec_base[rep] = get_beta(test_y, mean0, stddev0)
 
             del model0
             torch.cuda.empty_cache()
@@ -280,7 +276,6 @@ for ndata in datasizes:
                                                              for x in test_x]).detach().to(output_device)
             perc_robust[rep], err_offset_robust[rep], err_robust[rep] = evalperf(test_y, mean0, stddev_bound,
                                                                                  mean_bound, sqrbeta0)
-            beta_vec_robust[rep] = get_beta(test_y, mean0, stddev_bound)
 
             del boundinggp
             torch.cuda.empty_cache()
@@ -302,7 +297,6 @@ for ndata in datasizes:
             perc_fullb[rep], err_offset_fullb[rep], err_fullb[rep] = \
                 evalperf(test_y, fbgmm.mean, fbgmm.stddev,
                          fbgmm.mean, sqrbeta0)
-            beta_vec_fullb[rep] = get_beta(test_y, fbgmm.mean, fbgmm.stddev)
 
             del fullbmodel
             torch.cuda.empty_cache()
@@ -332,8 +326,7 @@ for ndata in datasizes:
         #       + mse_fullb)
 
         with open('regressionresults/percanderrs' + name_saving + datastr + '.pkl', 'wb') as f:
-            pickle.dump([beta_vec_base[:rep],beta_vec_robust[:rep],beta_vec_fullb[:rep],
-                         perc_base[:rep], err_offset_base[:rep], err_base[:rep],
+            pickle.dump([perc_base[:rep], err_offset_base[:rep], err_base[:rep],
                          perc_robust[:rep], err_offset_robust[:rep], err_robust[:rep],
                          perc_fullb[:rep], err_offset_fullb[:rep], err_fullb[:rep], gamma[:rep]], f)
 
