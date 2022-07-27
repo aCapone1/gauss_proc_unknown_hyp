@@ -310,7 +310,7 @@ for ndata in datasizes:
         datastr = np.array2string(ndata.detach().numpy())
 
 
-        print('ECE robust GP:  %.3f, ECE vanilla GP: %.3f, ECE fully Bayes GP: ' %
+        print('Percentage of incorrect bounds - Robust GP:  %.3f, Vanilla GP: %.3f, Fully Bayesian GP: ' %
               (torch.mean(torch.as_tensor(perc_robust[:rep + 1])),
                torch.mean(torch.as_tensor(perc_base[:rep + 1])))
               + mean_perc_fullb)
